@@ -1,0 +1,27 @@
+{
+  "name": "rabbitmq-util",
+  "version": "0.0.1",
+  "description": "Helper RabbitMQ",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/olkovmark/rabbitmq-util.git"
+  },
+  "author": "Mark Olkov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/olkovmark/rabbitmq-util/issues"
+  },
+  "homepage": "https://github.com/olkovmark/rabbitmq-util#readme",
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "ts-node": "^10.9.2"
+  }
+}

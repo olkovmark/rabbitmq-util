@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "declaration": true,
+    "target": "ES6",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["./src/*"],
+      "@controllers/*": ["./src/controllers/*"],
+      "@buttons/*": ["./src/common/buttons/*"],
+      "@models/*": ["./src/models/*"],
+      "@typesC/*": ["./src/common/types/*"],
+      "@enums/*": ["./src/common/enums/*"],
+      "@handlers/*": ["./src/common/handlers/*"],
+      "@utils/*": ["./src/utils/*"]
+    }
+  },
+
+  "include": ["src/**/*"],
+  "exclude": ["**/*.spec.ts"]
+}
