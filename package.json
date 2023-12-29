@@ -1,6 +1,6 @@
 {
-  "name": "rabbitmq-util",
-  "version": "0.0.1",
+  "name": "rabbitmq-faster-ts",
+  "version": "1.0.0",
   "description": "Helper RabbitMQ",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
