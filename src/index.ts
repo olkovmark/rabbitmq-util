@@ -13,9 +13,6 @@ export class RabbitMQ {
     if (this.channel) this.channel.close();
     this.channel = await this.connection.createChannel();
   }
-  static async channelClose() {
-    if (this.channel) this.channel.close();
-  }
 
   static async createExchange(
     exchange: string,
@@ -93,7 +90,6 @@ export class RabbitMQ {
             } catch (error) {
               reject(error);
             }
-            this.connection.close();
           }
         },
         { noAck: true }
