@@ -1,104 +1,111 @@
-import amqp from "amqplib";
+import amqp, { Connection, Channel, Options } from "amqplib";
 
 export class RabbitMQ {
-  private static connection;
-  private static channel;
+  private static connection: Connection;
+  private static channel: Channel;
+  private static queueList: Set<string> = new Set();
   static async connect(url: string) {
-    try {
-      this.connection = await amqp.connect(url);
-      this.channel = await this.connection.createChannel();
-    } catch (error) {
-      console.error("Error connecting to RabbitMQ:", error.message);
-    }
+    this.connection = await amqp.connect(url);
+    this.channel = await this.connection.createChannel();
   }
 
-  static assertQueue(queueName) {
-    this.channel.assertQueue(queueName);
+  static async open() {
+    if (this.channel) this.channel.close();
+    this.channel = await this.connection.createChannel();
+  }
+  static async channelClose() {
+    if (this.channel) this.channel.close();
   }
 
-  static async sendMessage(queueName, message) {
-    try {
-      await this.channel.assertQueue(queueName);
-      await this.channel.sendToQueue(
-        queueName,
-        Buffer.from(JSON.stringify(message))
-      );
-      console.log(`Sent message to queue "${queueName}":`, message);
-    } catch (error) {
-      console.error("Error sending message:", error.message);
-    }
+  static async createExchange(
+    exchange: string,
+    type: "direct" | "topic" | "headers" | "fanout" | "match" | string,
+    options?: Options.AssertExchange
+  ) {
+    await this.channel.assertExchange(exchange, type, options);
+  }
+
+  static async assertQueue(queueName) {
+    if (this.queueList.has(queueName)) return;
+    const res = await this.channel.assertQueue(queueName);
+    this.queueList.add(queueName);
+  }
+
+  static async sendMessage(queueName, message, options?: Options.Publish) {
+    if (typeof message !== "object") throw new Error("No JSON");
+
+    await this.assertQueue(queueName);
+    this.channel.sendToQueue(
+      queueName,
+      Buffer.from(JSON.stringify(message)),
+      options
+    );
   }
 
   static async sendToQueue(msg, data) {
-    try {
-      this.channel.sendToQueue(
-        msg.properties.replyTo,
-        Buffer.from(JSON.stringify(data)),
-        {
-          correlationId: msg.properties.correlationId,
-        },
-        { noAck: true }
-      );
-    } catch (error) {
-      console.error("Error sending message:", error.message);
-    }
+    this.channel.sendToQueue(
+      msg.properties.replyTo,
+      Buffer.from(JSON.stringify(data)),
+      {
+        correlationId: msg.properties.correlationId,
+      }
+    );
   }
 
   static async receiveMessage(queueName, callback) {
-    try {
-      await this.channel.assertQueue(queueName);
-      console.log(`Waiting for messages in queue "${queueName}"`);
-
-      this.channel.consume(queueName, (msg) => {
-        if (msg !== null) {
-          console.log(msg.content.toString());
-          try {
-            const message = JSON.parse(msg.content.toString());
-            console.log(`Received message from queue "${queueName}":`, message);
-          } catch (error) {}
-          callback(msg);
-          this.channel.ack(msg);
+    await this.assertQueue(queueName);
+    this.channel.consume(queueName, (msg) => {
+      if (msg !== null) {
+        let res;
+        if (msg.properties.replyTo) {
+          res = (response) => {
+            this.sendToQueue(msg, response);
+          };
         }
-      });
-    } catch (error) {
-      console.error("Error receiving message:", error.message);
-    }
+        callback(msg, res);
+        this.channel.ack(msg);
+      }
+    });
   }
 
-  static async sendMessageWithResponse(queueName, message, callback) {
-    try {
-      const replyQueue = await this.channel.assertQueue("", {
-        exclusive: true,
-      }); // Створюємо унікальну чергу для відповідей
+  static async sendMessageWithResponse(queueName, message): Promise<any> {
+    if (typeof message !== "object") throw new Error("No JSON");
 
-      const correlationId = generateCorrelationId(); // Генеруємо унікальний кореляційний ідентифікатор
+    const replyQueue = await this.channel.assertQueue("", {
+      exclusive: true,
+    });
 
-      // Споживач (consumer) отримує відповідь
+    const correlationId = generateCorrelationId();
+
+    const timer = setTimeout(() => {
+      this.channel.deleteQueue(replyQueue.queue);
+      throw new Error("Timeout");
+    }, 5000);
+    const res = new Promise((resolve, reject) => {
       this.channel.consume(
         replyQueue.queue,
         (msg) => {
-          if (msg.properties.correlationId === correlationId) {
-            const responseData = JSON.parse(msg.content.toString());
-            console.log("Received response from Service 2:", responseData);
-
-            // Тут ви можете обробити відповідь та відправити її клієнту API
-
-            // Закриваємо з'єднання
-            this.channel.close();
+          if (msg && msg.properties.correlationId === correlationId) {
+            try {
+              const responseData = JSON.parse(msg.content.toString());
+              clearTimeout(timer);
+              resolve(responseData);
+            } catch (error) {
+              reject(error);
+            }
             this.connection.close();
           }
         },
         { noAck: true }
       );
+    });
 
-      // Відправляємо дані до Сервісу 2 з кореляційним ідентифікатором та вказуємо чергу для відповідей
-      this.channel.sendToQueue(queueName, Buffer.from(message), {
-        correlationId: correlationId,
-        replyTo: replyQueue.queue,
-      });
-    } catch (error) {
-      console.error("Error sending message:", error.message);
-    }
+    this.sendMessage(queueName, message, {
+      correlationId: correlationId,
+      replyTo: replyQueue.queue,
+    });
+
+    return res;
   }
 
   static async close() {

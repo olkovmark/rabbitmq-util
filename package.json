@@ -1,6 +1,6 @@
 {
   "name": "rabbitmq-faster-ts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Helper RabbitMQ",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,7 +21,10 @@
   },
   "homepage": "https://github.com/olkovmark/rabbitmq-util#readme",
   "dependencies": {
-    "amqplib": "^0.10.3",
-    "ts-node": "^10.9.2"
+    "amqplib": "^0.10.3"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.4",
+    "@types/node": "^20.10.5"
   }
 }
